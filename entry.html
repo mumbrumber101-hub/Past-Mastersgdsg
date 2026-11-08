@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Past Master | Reading Guide</title>
+<meta name="robots" content="noindex,follow">
+<style>
+html,body{width:100%;height:100%;margin:0;background:#fafaf9;color:#292524}
+body{overflow:hidden}
+iframe{display:block;width:100%;height:100vh;height:100dvh;border:0}
+#status{position:fixed;inset:0;display:grid;place-items:center;padding:24px;font:18px/1.5 Georgia,serif;background:#fafaf9;z-index:1}
+#status[hidden]{display:none}
+#status.error{inset:auto 16px 16px;display:block;border:1px solid #d6d3d1;border-radius:6px;padding:14px;box-shadow:0 2px 10px #0001;max-width:42rem}
+a{color:#0369a1;text-decoration:none}
+noscript{position:fixed;inset:0;padding:24px;background:#fafaf9;z-index:2}
+</style>
+</head>
+<body>
+<div id="status" role="status">Opening the reading guide…</div>
+<iframe id="guide" title="Past Master reading guide"></iframe>
+<noscript>Open the <a href="./index.html">Past Master reading guide</a>.</noscript>
+<script>
+(() => {
+  'use strict';
+  const frame = document.getElementById('guide');
+  const status = document.getElementById('status');
+  const views = new Set(['outline','characters','locations','glossary','cosmology','nine','eagles','dreams','killers','bestiary','parties','folklore','promise','execution','timetravel','footnotes']);
+  let ready = false;
+  function message(text) {
+    status.textContent = text + ' ';
+    const link = document.createElement('a');
+    link.href = './index.html';
+    link.textContent = 'Open the full guide';
+    status.append(link);
+    status.className = 'error';
+    status.hidden = false;
+  }
+  function normalize(text) { return text.trim().replace(/\s+/g, ' ').toLowerCase(); }
+  function follow() {
+    if (!ready) return;
+    const doc = frame.contentDocument;
+    const win = frame.contentWindow;
+    const fragment = location.hash.slice(1);
+    const params = new URLSearchParams(fragment);
+    const select = name => {
+      if (!views.has(name)) return false;
+      const button = doc.querySelector('.view-btn[data-target="' + name + '"]');
+      if (!button) return false;
+      button.click();
+      return true;
+    };
+    const focus = element => {
+      if (!element) return false;
+      doc.querySelectorAll('[data-entry-target]').forEach(el => el.removeAttribute('data-entry-target'));
+      element.setAttribute('data-entry-target', '');
+      element.setAttribute('tabindex', '-1');
+      element.focus({preventScroll:true});
+      element.scrollIntoView({block:'start',behavior:'instant'});
+      status.hidden = true;
+      return true;
+    };
+    let target = null, label = 'Reading Guide';
+    if (!fragment) {
+      select('outline');
+      win.scrollTo(0,0);
+      status.hidden = true;
+      document.title = 'Past Master | Reading Guide';
+      return;
+    }
+    if (params.has('glossary')) {
+      const term = params.get('glossary');
+      if (!term || term.length > 150 || !select('glossary')) { message('That entry could not be opened.'); return; }
+      const input = doc.getElementById('glossary-search');
+      input.value = term;
+      input.dispatchEvent(new win.Event('input', {bubbles:true}));
+      target = [...doc.querySelectorAll('#glossary-container > div')].find(el => normalize(el.firstElementChild?.textContent || '') === normalize(term));
+      label = term;
+    } else if (params.has('note') || params.has('chapter')) {
+      const note = params.get('note');
+      const value = note || params.get('chapter');
+      if (!(note ? /^\d{1,2}-\d{1,2}$/ : /^\d{1,2}$/).test(value)) { message('That chapter could not be opened.'); return; }
+      const chapter = Number(value.split('-')[0]);
+      if (!select('outline')) { message('The chapter guide could not be opened.'); return; }
+      const content = doc.getElementById('ch-content-' + chapter);
+      const toggle = doc.getElementById('ch-toggle-' + chapter);
+      if (content && toggle) {
+        content.classList.add('open');
+        toggle.textContent = '−';
+        target = content.parentElement;
+        label = 'Chapter ' + chapter;
+        if (note) {
+          const notes = doc.getElementById('ann-content-' + chapter);
+          const notesToggle = doc.getElementById('ann-toggle-' + chapter);
+          if (notes && notesToggle) {
+            notes.classList.add('open');
+            notesToggle.textContent = '▾';
+            target = doc.getElementById('note-' + note);
+            label += ', note ' + note.split('-')[1];
+          } else target = null;
+        }
+      }
+    } else if (params.has('section')) {
+      const section = params.get('section');
+      if (select(section)) target = doc.querySelector('[data-view="' + section + '"]');
+      label = section || label;
+    }
+    if (!focus(target)) { message('That entry was not found. You can browse or search the guide.'); return; }
+    document.title = label + ' | Past Master';
+  }
+  frame.addEventListener('load', () => {
+    try {
+      const doc = frame.contentDocument;
+      if (!doc?.getElementById('glossary-search')) { message('The guide could not be loaded.'); return; }
+      const style = doc.createElement('style');
+      style.textContent = '[data-entry-target]{scroll-margin-top:20px;outline:2px solid #a8a29e;outline-offset:8px;border-radius:2px}';
+      doc.head.append(style);
+      ready = true;
+      follow();
+    } catch (_) { message('The guide could not be loaded.'); }
+  });
+  frame.addEventListener('error', () => message('The guide could not be loaded.'));
+  window.addEventListener('hashchange', follow);
+  frame.src = './index.html';
+})();
+</script>
+</body>
+</html>
